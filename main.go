@@ -90,6 +90,11 @@ func main() {
 		server.PrintAndDie(err.Error())
 	}
 
+	kafkaAuth := server.NewKafkaAuth(opts)
+	kafkaAuth.Start()
+
+	opts.CustomClientAuthentication = kafkaAuth
+
 	// Create the server with appropriate options.
 	s := server.New(opts)
 

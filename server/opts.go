@@ -63,6 +63,8 @@ type Options struct {
 	Username         string        `json:"-"`
 	Password         string        `json:"-"`
 	Authorization    string        `json:"-"`
+	KafkaBrokers     string        `json:"kafka_brokers"`
+	KafkaTopic		 string		   `json:"kafka_topic"`
 	PingInterval     time.Duration `json:"ping_interval"`
 	MaxPingsOut      int           `json:"ping_max"`
 	HTTPHost         string        `json:"http_host"`
@@ -135,8 +137,10 @@ func (o *Options) Clone() *Options {
 
 // Configuration file authorization section.
 type authorization struct {
+	kafkaBrokers string
+	kafkaTopic   string
 	// Singles
-	user  string
+	user         string
 	pass  string
 	token string
 	// Multiple Users
@@ -250,6 +254,8 @@ func (o *Options) ProcessConfigFile(configFile string) error {
 			o.Username = auth.user
 			o.Password = auth.pass
 			o.Authorization = auth.token
+			o.KafkaTopic = auth.kafkaTopic
+			o.KafkaBrokers = auth.kafkaBrokers
 			if (auth.user != "" || auth.pass != "") && auth.token != "" {
 				return fmt.Errorf("cannot have a user/pass and token")
 			}
@@ -490,6 +496,10 @@ func parseAuthorization(am map[string]interface{}) (*authorization, error) {
 			auth.pass = mv.(string)
 		case "token":
 			auth.token = mv.(string)
+		case "kafka_brokers":
+			auth.kafkaBrokers = mv.(string)
+		case "kafka_topic":
+			auth.kafkaTopic = mv.(string)
 		case "timeout":
 			at := float64(1)
 			switch mv := mv.(type) {
@@ -863,6 +873,12 @@ func MergeOptions(fileOpts, flagOpts *Options) *Options {
 	if flagOpts.ClientAdvertise != "" {
 		opts.ClientAdvertise = flagOpts.ClientAdvertise
 	}
+	if flagOpts.KafkaBrokers != "" {
+		opts.KafkaBrokers = flagOpts.KafkaBrokers
+	}
+	if flagOpts.KafkaTopic != "" {
+		opts.KafkaTopic = flagOpts.KafkaTopic
+	}
 	if flagOpts.Username != "" {
 		opts.Username = flagOpts.Username
 	}
@@ -1117,6 +1133,8 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 	fs.StringVar(&opts.Username, "user", "", "Username required for connection.")
 	fs.StringVar(&opts.Password, "pass", "", "Password required for connection.")
 	fs.StringVar(&opts.Authorization, "auth", "", "Authorization token required for connection.")
+	fs.StringVar(&opts.KafkaTopic, "kafka_topic", "", "Topic used to get auth data from.")
+	fs.StringVar(&opts.KafkaBrokers, "kafka_brokers", "", "Kafka broker list used to get auth data from.")
 	fs.IntVar(&opts.HTTPPort, "m", 0, "HTTP Port for /varz, /connz endpoints.")
 	fs.IntVar(&opts.HTTPPort, "http_port", 0, "HTTP Port for /varz, /connz endpoints.")
 	fs.IntVar(&opts.HTTPSPort, "ms", 0, "HTTPS Port for /varz, /connz endpoints.")
