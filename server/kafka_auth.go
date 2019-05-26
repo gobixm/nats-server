@@ -9,17 +9,16 @@ import (
 	"sync"
 )
 
-type KafkaClientAuthentication struct
-{
+type KafkaClientAuthentication struct {
 	brokerList string
-	topic string
-	users *sync.Map
+	topic      string
+	users      *sync.Map
 }
 
 func (auth KafkaClientAuthentication) Check(c ClientAuthentication) bool {
 	opts := c.GetOpts()
- 	username := opts.Username
- 	password := opts.Password
+	username := opts.Username
+	password := opts.Password
 
 	user, exists := auth.users.Load(username)
 
@@ -40,26 +39,32 @@ func (auth KafkaClientAuthentication) Configure() {
 }
 
 func NewKafkaAuth(opts *Options) *KafkaClientAuthentication {
+	users := &sync.Map{}
+	for _, user := range opts.Users {
+		users.Store(user.Username, user)
+	}
+
 	return &KafkaClientAuthentication{
 		brokerList: opts.KafkaBrokers,
-		topic: opts.KafkaTopic,
-		users: &sync.Map{},
+		topic:      opts.KafkaTopic,
+		users:      users,
 	}
 }
 
 func (auth KafkaClientAuthentication) Start() {
 	go func() {
 		c, err := kafka.NewConsumer(&kafka.ConfigMap{
-			"bootstrap.servers": auth.brokerList,
-			"auto.offset.reset": "earliest",
-			"group.id": fmt.Sprintf("nats-kafka-auth-%d", rand.Int31()),
+			"bootstrap.servers":    auth.brokerList,
+			"auto.offset.reset":    "earliest",
+			"group.id":             fmt.Sprintf("nats-kafka-auth-%d", rand.Int31()),
+			"max.poll.interval.ms": "86400000",
 		})
 
 		if err != nil {
 			panic(err)
 		}
 
- 		c.Subscribe(auth.topic, nil)
+		c.Subscribe(auth.topic, nil)
 
 		for {
 			msg, err := c.ReadMessage(-1)
@@ -78,11 +83,10 @@ func (auth KafkaClientAuthentication) Start() {
 					continue
 				}
 
-
 				user.Username = username
 				auth.users.Store(username, user)
 			} else {
- 				fmt.Printf("KafkaClientAuthentication consumer error: %v (%v)\n", err, msg)
+				fmt.Printf("KafkaClientAuthentication consumer error: %v (%v)\n", err, msg)
 			}
 		}
 
